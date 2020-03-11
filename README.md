@@ -7,5 +7,24 @@
 
 # 任务格式
 ```
-* * * * * echo hello
+* * *  * * * echo hello
+秒 分 时 日 月 周 命令 参数1 ... 参数n
+```
+
+# 现有命令
+```
+Usage:
+   [command]
+
+Available Commands:
+  add         添加定时任务
+  clear       清空任务列表
+  daemon      启动定时任务调度器
+  help        Help about any command
+  list        列出现有任务
+  rm          删除指定任务
+
+Flags:
+  -h, --help   help for this command
+
 ```
