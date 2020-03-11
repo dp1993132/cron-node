@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	. "github.com/dp1993132/cron-node/m/v2/core"
 	"log"
@@ -13,12 +14,16 @@ import (
 
 func main(){
 	defer CronNode.Stop()
-	defer SaveTask()
 	LoadTask()
 	CronNode.Start()
 
+	// 监听配置文件变化
+	ctx,cancel:=context.WithCancel(context.Background())
+	defer cancel()
+	WatchTaskList(ctx)
+
 	var c = make(chan os.Signal)
-	signal.Notify(c,syscall.SIGINT)
+	signal.Notify(c,syscall.SIGINT,syscall.SIGHUP)
 	sig:
 	<-c
 	var char string

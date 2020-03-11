@@ -2,7 +2,10 @@ package core
 
 import (
 	"bufio"
+	"context"
+	"flag"
 	"fmt"
+	"github.com/fsnotify/fsnotify"
 	"github.com/robfig/cron/v3"
 	"log"
 	"os"
@@ -13,24 +16,29 @@ import (
 )
 
 var CronNode *cron.Cron
-var taskList []string
 var entryIDS []cron.EntryID
 var mutex sync.Mutex
 var logger = log.New(os.Stdout, "cron: ", log.LstdFlags)
+var debugMode bool
 
 func init(){
-	CronNode = cron.New(cron.WithLogger(cron.VerbosePrintfLogger(logger)))
-	log.SetOutput(os.Stdout)
+	flag.BoolVar(&debugMode,"debug",false,"是否显示debug信息")
+	flag.Parse()
+
+	if debugMode {
+		CronNode = cron.New(cron.WithLogger(cron.VerbosePrintfLogger(logger)))
+		log.SetOutput(os.Stdout)
+	} else {
+		CronNode = cron.New()
+	}
 }
 
 func LoadTask(){
-	tp:=getTaskConfigPath()
-	fl,err:=os.OpenFile(tp,os.O_CREATE|os.O_RDONLY,0644)
+	fl,err:=GetTaskConfigFile()
 	if err != nil {
+		log.Println("读取任务列表失败")
 		return
 	}
-	defer fl.Close()
-	log.Println("定时服务配置于",tp)
 
 	sc:=bufio.NewScanner(fl)
 	for sc.Scan(){
@@ -45,6 +53,7 @@ func LoadTask(){
 }
 
 func ReloadTask() {
+	log.Println("重新加载任务列表")
 	CronNode.Stop()
 	defer CronNode.Start()
 
@@ -52,23 +61,6 @@ func ReloadTask() {
 		CronNode.Remove(id)
 	}
 	LoadTask()
-}
-
-func SaveTask(){
-	tp:=getTaskConfigPath()
-	fl,err:=os.OpenFile(tp,os.O_CREATE|os.O_WRONLY|os.O_TRUNC,0644)
-	if err != nil {
-		return
-	}
-	defer log.Println("保存定时任务于",tp,taskList)
-	defer fl.Close()
-
-	for _,line:= range taskList {
-		if _,err:=fmt.Fprintln(fl,line);err!=nil {
-			log.Println(err)
-			continue
-		}
-	}
 }
 
 func ParseLine(line string)([]string,error){
@@ -98,8 +90,6 @@ func parseCMD(cmdstr string) (cron.FuncJob,error){
 	arr:=strings.Split(cmdstr," ")
 	return func() {
 		cmd:=exec.Command(arr[0],arr[1:]...)
-		cmd.Stdout = os.Stdout
-		cmd.Stderr=os.Stderr
 
 		err:=cmd.Run()
 		if err != nil {
@@ -126,7 +116,6 @@ func AddTask(line string) error {
 	if err == nil {
 		entryIDS = append(entryIDS,id)
 		task:=strings.Join(res," ")
-		taskList = append(taskList,task)
 		log.Println("添加定时任务",task)
 	}
 	return err
@@ -140,4 +129,25 @@ func getTaskConfigPath() string {
 		return path.Join(userHomeDir,"cron-task")
 	}
 	return path.Join(path.Dir(os.Args[0]),".cron-task")
+}
+
+func GetTaskConfigFile()(*os.File,error) {
+	tp:=getTaskConfigPath()
+	return os.OpenFile(tp,os.O_CREATE|os.O_RDONLY,0644)
+}
+
+func WatchTaskList(ctx context.Context){
+	wc,err:=fsnotify.NewWatcher()
+	if err != nil {
+		return
+	}
+	wc.Add(getTaskConfigPath())
+	for {
+		select {
+		case <-wc.Events:
+			ReloadTask()
+		case <-ctx.Done():
+			break
+		}
+	}
 }
