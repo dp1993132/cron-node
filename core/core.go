@@ -121,10 +121,10 @@ func AddTask(line string) error {
 	return err
 }
 
-func getTaskConfigPath() string {
-	if cacheDir,err:= os.UserCacheDir();err == nil {
-		return path.Join(cacheDir,"cron-task")
-	}
+func GetTaskConfigPath() string {
+	//if cacheDir,err:= os.UserCacheDir();err == nil {
+	//	return path.Join(cacheDir,"cron-task")
+	//}
 	if userHomeDir,err:= os.UserHomeDir();err == nil{
 		return path.Join(userHomeDir,"cron-task")
 	}
@@ -132,7 +132,8 @@ func getTaskConfigPath() string {
 }
 
 func GetTaskConfigFile()(*os.File,error) {
-	tp:=getTaskConfigPath()
+	tp:= GetTaskConfigPath()
+	log.Println("读取任务列表",tp)
 	return os.OpenFile(tp,os.O_CREATE|os.O_RDONLY,0644)
 }
 
@@ -141,11 +142,13 @@ func WatchTaskList(ctx context.Context){
 	if err != nil {
 		return
 	}
-	wc.Add(getTaskConfigPath())
+	wc.Add(GetTaskConfigPath())
 	for {
 		select {
-		case <-wc.Events:
-			ReloadTask()
+		case evt:=<-wc.Events:
+			if evt.Op&fsnotify.Create == fsnotify.Create {
+				ReloadTask()
+			}
 		case <-ctx.Done():
 			break
 		}
