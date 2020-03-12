@@ -28,6 +28,15 @@ var daemonCmd = &cobra.Command{
 }
 
 func daemon() {
+	pid, err := util.GetPID()
+	if err == nil && pid != 0 {
+		_, err := os.FindProcess(pid)
+		if err == nil {
+			log.Println("进程已存在", pid)
+			return
+		}
+	}
+
 	util.SetPID(os.Getpid())
 	defer util.RmPID()
 
@@ -91,6 +100,10 @@ func sendReloadSig() error {
 }
 func add(task string) error {
 
+	if find(task) {
+		return fmt.Errorf("任务已存在")
+	}
+
 	fl, err := util.GetTaskConfigFile(os.O_CREATE | os.O_APPEND | os.O_WRONLY)
 	if err != nil {
 		return err
@@ -108,6 +121,23 @@ func add(task string) error {
 	}
 
 	return err
+}
+
+func find(task string) bool {
+	fl, err := util.GetTaskConfigFile(os.O_RDONLY)
+	if err != nil {
+		return false
+	}
+	defer fl.Close()
+
+	sc := bufio.NewScanner(fl)
+	for sc.Scan() {
+		line := sc.Text()
+		if line == task {
+			return true
+		}
+	}
+	return false
 }
 
 var lsCmd = &cobra.Command{

@@ -7,8 +7,11 @@
 
 # 任务格式
 ```
-* * *  * * * echo hello
+* * * * * * cmd args...
 秒 分 时 日 月 周 命令 参数1 ... 参数n
+
+例如：* * * * * * get report.yottachain.net
+每秒调用一次get report.yottachain.net一次
 ```
 
 # 现有命令

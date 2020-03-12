@@ -6,6 +6,7 @@ import (
 	"github.com/dp1993132/cron-node/m/v2/util"
 	"github.com/robfig/cron/v3"
 	"log"
+	"net/http"
 	"os"
 	"os/exec"
 	"strings"
@@ -77,11 +78,20 @@ func parseCMD(cmdstr string) (cron.FuncJob, error) {
 
 	arr := strings.Split(cmdstr, " ")
 	return func() {
-		cmd := exec.Command(arr[0], arr[1:]...)
+		switch arr[0] {
+		case "get":
+			_, err := http.Get("http://" + arr[1])
+			if err != nil {
+				log.Println(err)
+			}
+			//log.Println(resp.StatusCode)
+		default:
+			cmd := exec.Command(arr[0], arr[1:]...)
 
-		err := cmd.Run()
-		if err != nil {
-			log.Println(err)
+			err := cmd.Run()
+			if err != nil {
+				log.Println(err)
+			}
 		}
 	}, err
 }
