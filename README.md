@@ -10,7 +10,7 @@
 * * * * * * cmd args...
 秒 分 时 日 月 周 命令 参数1 ... 参数n
 
-例如：* * * * * * get report.yottachain.net
+例如：* * * * * * get report.yottachain.net/test
 每秒调用一次get report.yottachain.net一次
 ```
 
